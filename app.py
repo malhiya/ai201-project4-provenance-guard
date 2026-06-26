@@ -2,24 +2,21 @@ import uuid
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
-# Load system environment variables 
 load_dotenv()
 
-# Import your local modules
 import analyzer  
 import database  
 
 app = Flask(__name__)
-
-# Automatically ensure the database table is ready when Flask boots up
 database.init_db()
 
 @app.route("/submit", methods=["POST"])
 def submit():
     """
     POST /submit
-    Ingests text, runs Signal 1 analysis, commits a structured entry to the 
-    audit log database, and returns the result.
+    Ingests text content, fires the multi-signal detection pipeline, 
+    calibrates thresholds, writes to the persistent audit log ledger,
+    and returns the structured data contract payload.
     """
     data = request.get_json(silent=True)
     if not data:
@@ -28,7 +25,7 @@ def submit():
     text_field = data.get("text")
     creator_id_field = data.get("creator_id")
 
-    # Defensive validation boundaries
+    # Defensive boundary validation checks
     if not text_field or not isinstance(text_field, str):
         return jsonify({"error": "Missing or invalid required field: 'text' must be a non-empty string."}), 400
     if not creator_id_field or not isinstance(creator_id_field, str):
@@ -37,41 +34,43 @@ def submit():
     # A. Generate tracking ID
     content_id = str(uuid.uuid4())
 
-    # B. Execute live Signal 1 analysis
-    llm_score = analyzer.analyze_llm_attribution(text_field)
+    # B. Execute the multi-signal detection pipeline
+    s1_llm_score = analyzer.analyze_llm_attribution(text_field)
+    s2_sty_score = analyzer.analyze_stylometric_heuristics(text_field)
 
-    # C. Map raw score to thresholds
-    if llm_score >= 0.70:
+    # C. Run Combination Strategy Engineering math
+    final_confidence = analyzer.calculate_combined_confidence(s1_llm_score, s2_sty_score)
+
+    # D. Calibrate the output to your specification thresholds
+    if final_confidence >= 0.70:
         attribution = "likely_ai"
-    elif llm_score <= 0.40:
+    elif final_confidence <= 0.40:
         attribution = "likely_human"
     else:
         attribution = "uncertain"
 
-    # For Milestone 3, confidence matches our raw signal 1 score
-    confidence = llm_score
     status = "classified"
 
-    # D. WRITE TO AUDIT LOG (SQLite Database)
+    # E. Commit the transaction parameters into the persistent database log
     try:
         database.write_log_entry(
             content_id=content_id,
             creator_id=creator_id_field,
             text_content=text_field,
             attribution=attribution,
-            confidence=confidence,
-            llm_score=llm_score,
+            confidence=final_confidence,     # Unified weighted score
+            llm_score=s1_llm_score,          # Preserving individual Signal 1 tracking
             status=status
         )
     except Exception as e:
         return jsonify({"error": f"Internal audit log storage failure: {str(e)}"}), 500
 
-    # E. Compile response payload matching data contract
+    # F. Construct standard API Response Payload
     response_payload = {
         "content_id": content_id,
         "attribution": attribution,
-        "confidence": confidence,
-        "label": f"Signal 1 Analysis complete. System analyzed pattern predictability as {llm_score}.",
+        "confidence": final_confidence,
+        "label": f"Pipeline analysis complete. Combined probability: {final_confidence}. (Signal 1: {s1_llm_score}, Signal 2: {s2_sty_score}).",
         "status": status
     }
 
@@ -82,11 +81,9 @@ def submit():
 def get_log():
     """
     GET /log
-    Reads all historical structured records from the SQLite database ledger 
-    and returns them as a JSON array sorted from newest to oldest.
+    Surfaces audit trailing arrays back for validation and documentation.
     """
     try:
-        # Fetch the array of row dictionaries from database.py
         logs = database.read_all_logs()
         return jsonify({"entries": logs}), 200
     except Exception as e:
