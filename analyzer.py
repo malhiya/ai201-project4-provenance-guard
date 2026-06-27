@@ -106,3 +106,38 @@ def calculate_combined_confidence(llm_score: float, stylometric_score: float) ->
     """
     final_score = (0.65 * llm_score) + (0.35 * stylometric_score)
     return round(max(0.0, min(1.0, final_score)), 2)
+
+# =====================================================================
+# TRANSPARENCY LABEL GENERATION ENGINE
+# =====================================================================
+def generate_transparency_label(final_score: float) -> dict:
+    """
+    Maps the final combined score into a specific user-facing label classification
+    and dynamically re-calibrates the confidence text matrix.
+    """
+    if final_score >= 0.70:
+        confidence_percent = int(final_score * 100)
+        attribution = "likely_ai"
+        text = (
+            f"Automated Content Detected > Our system has high confidence ({confidence_percent}%) "
+            f"that this text matches patterns consistent with AI-generated writing."
+        )
+    elif final_score <= 0.40:
+        # Confidence calculation: confidence = 1.0 - final_score
+        confidence_percent = int((1.0 - final_score) * 100)
+        attribution = "likely_human"
+        text = (
+            f"Verified Human Author > Our system has high confidence ({confidence_percent}%) "
+            f"that this text exhibits patterns consistent with original human writing."
+        )
+    else:
+        attribution = "uncertain"
+        text = (
+            "Inconclusive Authorship > Our system detected a mix of original and automated "
+            "writing patterns. We cannot definitively determine authorship for this submission."
+        )
+
+    return {
+        "attribution": attribution,
+        "label": text
+    }

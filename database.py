@@ -4,10 +4,7 @@ import datetime
 DATABASE_FILE = "provenance_guard.db"
 
 def init_db():
-    """
-    Initializes the local SQLite database file and builds the structural
-    audit log schema if it doesn't already exist.
-    """
+    """Initializes schema and ensures all fine-grained logging columns are ready."""
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
     cursor.execute("""
@@ -19,39 +16,52 @@ def init_db():
             attribution TEXT NOT NULL,
             confidence REAL NOT NULL,
             llm_score REAL NOT NULL,
-            status TEXT NOT NULL
+            stylometric_score REAL NOT NULL,
+            status TEXT NOT NULL,
+            appeal_reasoning TEXT
         )
     """)
     conn.commit()
     conn.close()
 
-def write_log_entry(content_id: str, creator_id: str, text_content: str, attribution: str, confidence: float, llm_score: float, status: str = "classified"):
-    """
-    Writes a beautifully structured row into the database audit ledger.
-    """
-    # Generates a standard UTC ISO timestamp
+def write_log_entry(content_id: str, creator_id: str, text_content: str, attribution: str, confidence: float, llm_score: float, stylometric_score: float, status: str = "classified"):
     current_time = datetime.datetime.utcnow().isoformat() + "Z"
-    
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO audit_log (content_id, creator_id, timestamp, text_content, attribution, confidence, llm_score, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (content_id, creator_id, current_time, text_content, attribution, confidence, llm_score, status)) # <-- Added current_time & text_content here
+        INSERT INTO audit_log (content_id, creator_id, timestamp, text_content, attribution, confidence, llm_score, stylometric_score, status, appeal_reasoning)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+    """, (content_id, creator_id, current_time, text_content, attribution, confidence, llm_score, stylometric_score, status))
+    conn.commit()
+    conn.close()
+
+def get_log_by_id(content_id: str):
+    """Fetches a single tracking transaction to allow state machine validation check boundaries."""
+    conn = sqlite3.connect(DATABASE_FILE)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM audit_log WHERE content_id = ?", (content_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def update_to_under_review(content_id: str, reason: str):
+    """Mutates lifecycle state cleanly without touching historically frozen metric evaluations."""
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE audit_log 
+        SET status = 'under_review', appeal_reasoning = ? 
+        WHERE content_id = ?
+    """, (reason, content_id))
     conn.commit()
     conn.close()
 
 def read_all_logs():
-    """
-    Reads all past audit entries, converting row objects into dictionaries 
-    so they can be easily serialized into JSON by Flask.
-    """
     conn = sqlite3.connect(DATABASE_FILE)
-    conn.row_factory = sqlite3.Row  # This allows accessing columns by name like a dictionary
+    conn.row_factory = sqlite3.Row  
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM audit_log ORDER BY timestamp DESC")
     rows = cursor.fetchall()
     conn.close()
-    
-    # Transform rows to an array of standard Python dictionaries
     return [dict(row) for row in rows]
