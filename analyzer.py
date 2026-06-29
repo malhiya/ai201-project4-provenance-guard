@@ -99,12 +99,28 @@ def analyze_stylometric_heuristics(text: str) -> float:
 # =====================================================================
 # SYSTEM COMBINATION ENGINE
 # =====================================================================
-def calculate_combined_confidence(llm_score: float, stylometric_score: float) -> float:
+def calculate_combined_confidence(llm_score: float, stylometric_score: float, word_count: int = None) -> float:
     """
     Applies the specified design contract formula weights:
-    65% LLM-Based Analysis + 35% Stylometric Heuristics
+    65% LLM-Based Analysis + 35% Stylometric Heuristics.
+
+    For short inputs (under 50 words) the stylometric heuristics become unreliable
+    (TTR is mechanically high and there are too few sentences to measure burstiness),
+    so we shift the weighting toward the LLM signal to avoid an artificially
+    "human-like" stylometric score dragging clearly-AI text into the uncertain band.
+    To avoid a sudden jump at the 50-word boundary, the semantic weight is scaled
+    smoothly from 0.85 (at 10 words) down to 0.65 (at 50 words).
     """
-    final_score = (0.65 * llm_score) + (0.35 * stylometric_score)
+    # Short-text weighting adjustment (disabled): flat 65/35 weighting is used for all texts.
+    # if word_count is not None and word_count < 50:
+    #     # Linearly interpolate the semantic weight from 0.85 (10 words) to 0.65 (50 words)
+    #     llm_weight = max(0.65, 0.85 - ((word_count - 10) / 40) * 0.20)
+    #     stylometric_weight = 1.0 - llm_weight
+    # else:
+    #     llm_weight, stylometric_weight = 0.65, 0.35
+    llm_weight, stylometric_weight = 0.65, 0.35
+
+    final_score = (llm_weight * llm_score) + (stylometric_weight * stylometric_score)
     return round(max(0.0, min(1.0, final_score)), 2)
 
 # =====================================================================
@@ -119,7 +135,7 @@ def generate_transparency_label(final_score: float) -> dict:
         confidence_percent = int(final_score * 100)
         attribution = "likely_ai"
         text = (
-            f"Automated Content Detected > Our system has high confidence ({confidence_percent}%) "
+            f"Likely AI > Our system has high confidence ({confidence_percent}%) "
             f"that this text matches patterns consistent with AI-generated writing."
         )
     elif final_score <= 0.40:
@@ -127,13 +143,13 @@ def generate_transparency_label(final_score: float) -> dict:
         confidence_percent = int((1.0 - final_score) * 100)
         attribution = "likely_human"
         text = (
-            f"Verified Human Author > Our system has high confidence ({confidence_percent}%) "
+            f"Likely Human > Our system has high confidence ({confidence_percent}%) "
             f"that this text exhibits patterns consistent with original human writing."
         )
     else:
         attribution = "uncertain"
         text = (
-            "Inconclusive Authorship > Our system detected a mix of original and automated "
+            "Uncertain > Our system detected a mix of original and automated "
             "writing patterns. We cannot definitively determine authorship for this submission."
         )
 

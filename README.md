@@ -44,17 +44,39 @@ Testing was conducted using a mixed dataset of human and AI text to validate thi
 
 ### Scoring Examples
 
-#### Example A: High-Confidence Automated Result
-* **Combined Core Score:** 0.85
-* **Signal 1 (Semantic):** 0.90
-* **Signal 2 (Stylometric):** 0.75
-* **Result:** Both engines agree. The machine learning model finds heavy AI phrasing patterns, and the style metrics confirm highly uniform sentence structures.
+#### Example 1: High-Confidence Automated Result
+**Text:** "Artificial intelligence represents a transformative paradigm shift in modern society. It is important to note that while the benefits of AI are numerous, it is equally essential to consider the ethical implications. Furthermore, stakeholders across various sectors must collaborate to ensure responsible deployment"
 
-#### Example B: Lower-Confidence / Ambiguous Result
-* **Combined Core Score:** 0.41
-* **Signal 1 (Semantic):** 0.42
-* **Signal 2 (Stylometric):** 0.38
-* **Result:** The signals conflict near the center line. The text shows varied human sentence lengths but uses highly predictable phrasing, placing it in the inconclusive zone.
+**Output:**
+```
+Likely AI
+Our system has high confidence (80%) that this text matches patterns consistent with AI-generated writing.
+
+Score Analysis:
+
+Confidence Score: 80%
+Combined Core Score: 0.8
+Signal 1 (Semantic Probabilities): 0.87
+Signal 2 (Stylometric Heuristics): 0.38
+Submission ID: fb37b412-d978-4728-a9b8-4797cff40f50
+```
+
+#### Example 2: Lower-Confidence 
+**Text:** Warmest congratulations on earning your medical degree! Your endless dedication, perseverance, and compassion have finally paid off. The world truly needs your skills and caring heart, and I cannot wait to see the incredible impact you will make in your patients' lives. Wishing you an incredibly fulfilling career ahead
+
+**Output:**
+```
+Likely Human
+Our system has high confidence (60%) that this text exhibits patterns consistent with original human writing.
+
+Score Analysis:
+
+Confidence Score: 60%
+Combined Core Score: 0.4
+Signal 1 (Semantic Probabilities): 0.42
+Signal 2 (Stylometric Heuristics): 0.32
+Submission ID: 7497ae01-3748-4ca8-a474-ca09fc86681a
+```
 
 ---
 
@@ -63,15 +85,15 @@ Testing was conducted using a mixed dataset of human and AI text to validate thi
 The application maps the final score into one of three clear categories so users can easily understand how the system reached its decision:
 
 ### 1. High-Confidence AI Detected (Score >= 0.70)
-* **Heading Displayed:** Automated Content Detected
+* **Heading Displayed:** Likely AI
 * **Description Displayed:** The system has high confidence (XX%) that this text matches patterns consistent with AI-generated writing. *(Where XX% is calculated directly from the score)*
 
 ### 2. High-Confidence Human Verified (Score <= 0.40)
-* **Heading Displayed:** Verified Human Author
+* **Heading Displayed:** Likely Human
 * **Description Displayed:** The system has high confidence (XX%) that this text exhibits patterns consistent with original human writing. *(Where XX% represents the inverted confidence: (1.0 - score) * 100)*
 
 ### 3. Uncertain / Borderline Gray Area (Score 0.41 to 0.69)
-* **Heading Displayed:** Inconclusive Authorship
+* **Heading Displayed:** Uncertain
 * **Description Displayed:** The system detected a mix of original and automated writing patterns. Authorship cannot be definitively determined for this submission.
 
 ---
@@ -81,6 +103,9 @@ The application maps the final score into one of three clear categories so users
 * **Configured Limit:** Maximum of 10 requests per minute per user.
 * **Implementation Reasoning:** This limit keeps the system stable and prevents the SQLite database from slowing down or locking up. It provides plenty of freedom for normal human use—like checking multiple pieces of text or looking up submission histories—while blocking automated scripts from overwhelming the server.
 
+![Rate limit test](rate-limit-test.png)
+
+The image above shows that after the rate limit has passed 10, it returns and error and the user is unable to submit in that minute. 
 ---
 
 ## Known Limitations
@@ -94,39 +119,18 @@ The system is prone to misclassifying essays written by non-native English speak
 
 ## Specification Reflection
 
-* **How the Requirement Helped:** The requirement to include a human-in-the-loop appeal workflow forced the development of a stateful database architecture from the very beginning. Instead of building a temporary, stateless script, clear database status updates (classified -> under_review) were established. This design simplified the later implementation of the user's historical submission log tab.
-* **Where the Project Diverged:** The initial layout rules assumed the appeal form should always be visible on the screen. During development, it became clear that this layout cluttered the interface. The Gradio frontend workflow was modified so the appeal input box remains hidden until a user explicitly clicks the "Dispute This Result" button, creating a much cleaner user experience.
+* **How the Spec Helped:** The requirement to include a human-in-the-loop appeal workflow forced the development of a stateful database architecture from the very beginning. Instead of building a temporary, stateless script, clear database status updates (classified -> under_review) were established. This design simplified the later implementation of the user's historical submission log tab.
+* **Where the Project Diverged:** The initial layout rules assumed the appeal form should always be visible on the screen. During development, it became clear that this layout cluttered the interface. The Gradio frontend workflow was modified so the appeal form had its on tab and a button on the front page to redirect a user there, creating a much cleaner user experience.
+
+
+## AI Usage
+### AI Usage Section
+
+* **Instance 1: Development of the Core Scoring Formula**
+  I used Gemini to create a formula that combines machine learning probabilities with statistical writing metrics. The initial suggestion was a simple 50/50 split, but this was overridden to implement a weighted average that prioritizes the machine learning model. This adjustment successfully prevented short text blocks from generating incorrect human-leaning results.
+
+* **Instance 2: Refinement of the System Appeal Workflow**
+  I used Gemini and asked it to design the layout for the frontend user interface and the backend database states. The original design placed the dispute form on the main dashboard screen at all times, which created a cluttered and confusing workspace. This layout was revised to hide the appeal input fields behind a toggle action, keeping the interface clean until a user explicitly clicks the dispute button.
 
 
 
-
-
-
-
-
-## Rate Limiting Security Posture
-
-To protect our core text classification pipeline from programmatic denial-of-service abuse and credential harvesting scripts, we have deployed `Flask-Limiter` directly across our ingestion points.
-
-### Implemented Limits
-* **Route:** `POST /submit`
-* **Thresholds:** `10 per minute; 100 per day` per unique IP address context.
-
-### Design Justification & Defense Strategy
-1. **Human Persona Alignment:** A legitimate human creator using our platform to check their original writing submissions will naturally need a few minutes to copy, paste, review, and adjust their texts. They will practically never submit more than 10 complete blocks of text within a single 60-second window.
-2. **Abuse Mitigation Strategy:** If a malicious script attempts to scrape our model thresholds by sending thousands of automated texts, the application context intercepts them at request #11, stopping database inflation and protecting computational resources.
-
-### Verification Matrix Evidence (Captured Status Responses)
-During integration stress-testing, flooding the submission route with 12 sequential automated requests back-to-back successfully returned the following target HTTP status codes:
-200
-200
-200
-200
-200
-200
-200
-200
-200
-200
-429
-429

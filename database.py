@@ -24,7 +24,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-def write_log_entry(content_id: str, creator_id: str, text_content: str, attribution: str, confidence: float, llm_score: float, stylometric_score: float, status: str = "classified"):
+def write_log_entry(content_id: str, creator_id: str, text_content: str, attribution: str, confidence: float, llm_score: float, stylometric_score: float, status: str = "completed"):
     current_time = datetime.datetime.utcnow().isoformat() + "Z"
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()

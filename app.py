@@ -34,12 +34,13 @@ def submit():
     # Execute Pipeline & Label Mapping
     s1_llm_score = analyzer.analyze_llm_attribution(text_field)
     s2_sty_score = analyzer.analyze_stylometric_heuristics(text_field)
-    final_confidence = analyzer.calculate_combined_confidence(s1_llm_score, s2_sty_score)
+    word_count = len(text_field.split())
+    final_confidence = analyzer.calculate_combined_confidence(s1_llm_score, s2_sty_score, word_count)
 
     label_package = analyzer.generate_transparency_label(final_confidence)
     attribution = label_package["attribution"]
     label_text = label_package["label"]
-    status = "classified"
+    status = "completed"
 
     try:
         database.write_log_entry(
