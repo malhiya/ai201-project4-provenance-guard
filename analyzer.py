@@ -126,6 +126,19 @@ def calculate_combined_confidence(llm_score: float, stylometric_score: float, wo
 # =====================================================================
 # TRANSPARENCY LABEL GENERATION ENGINE
 # =====================================================================
+def _confidence_phrase(confidence_percent: int) -> str:
+    """
+    Maps a confidence percentage to a qualitative strength phrase so the label text
+    visibly changes with the confidence level, not just the displayed number.
+    """
+    if confidence_percent >= 85:
+        return "high confidence"
+    elif confidence_percent >= 70:
+        return "moderate confidence"
+    else:
+        return "low confidence"
+
+
 def generate_transparency_label(final_score: float) -> dict:
     """
     Maps the final combined score into a specific user-facing label classification
@@ -135,7 +148,7 @@ def generate_transparency_label(final_score: float) -> dict:
         confidence_percent = int(final_score * 100)
         attribution = "likely_ai"
         text = (
-            f"Likely AI > Our system has high confidence ({confidence_percent}%) "
+            f"Likely AI > Our system has {_confidence_phrase(confidence_percent)} ({confidence_percent}%) "
             f"that this text matches patterns consistent with AI-generated writing."
         )
     elif final_score <= 0.40:
@@ -143,7 +156,7 @@ def generate_transparency_label(final_score: float) -> dict:
         confidence_percent = int((1.0 - final_score) * 100)
         attribution = "likely_human"
         text = (
-            f"Likely Human > Our system has high confidence ({confidence_percent}%) "
+            f"Likely Human > Our system has {_confidence_phrase(confidence_percent)} ({confidence_percent}%) "
             f"that this text exhibits patterns consistent with original human writing."
         )
     else:

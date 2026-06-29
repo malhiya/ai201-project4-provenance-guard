@@ -84,13 +84,19 @@ Submission ID: 7497ae01-3748-4ca8-a474-ca09fc86681a
 
 The application maps the final score into one of three clear categories so users can easily understand how the system reached its decision:
 
-### 1. High-Confidence AI Detected (Score >= 0.70)
-* **Heading Displayed:** Likely AI
-* **Description Displayed:** The system has high confidence (XX%) that this text matches patterns consistent with AI-generated writing. *(Where XX% is calculated directly from the score)*
+The description text also adapts to **how strong** the confidence is, so a borderline result reads differently from a clear one — not just a different number. The strength phrase is chosen from the confidence percentage:
 
-### 2. High-Confidence Human Verified (Score <= 0.40)
+* **85% and above:** "high confidence"
+* **70% to 84%:** "moderate confidence"
+* **Below 70%:** "low confidence"
+
+### 1. AI Detected (Score >= 0.70)
+* **Heading Displayed:** Likely AI
+* **Description Displayed:** The system has [confidence phrase] (XX%) that this text matches patterns consistent with AI-generated writing. *(Where XX% is calculated directly from the score, and the confidence phrase scales with that percentage)*
+
+### 2. Human Verified (Score <= 0.40)
 * **Heading Displayed:** Likely Human
-* **Description Displayed:** The system has high confidence (XX%) that this text exhibits patterns consistent with original human writing. *(Where XX% represents the inverted confidence: (1.0 - score) * 100)*
+* **Description Displayed:** The system has [confidence phrase] (XX%) that this text exhibits patterns consistent with original human writing. *(Where XX% represents the inverted confidence: (1.0 - score) * 100)*
 
 ### 3. Uncertain / Borderline Gray Area (Score 0.41 to 0.69)
 * **Heading Displayed:** Uncertain
