@@ -51,7 +51,8 @@ def submit():
             confidence=final_confidence,
             llm_score=s1_llm_score,
             stylometric_score=s2_sty_score,
-            status=status
+            status=status,
+            transparency_label=label_text
         )
     except Exception as e:
         return jsonify({"error": f"Database write error: {str(e)}"}), 500

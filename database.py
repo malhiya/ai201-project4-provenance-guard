@@ -18,20 +18,25 @@ def init_db():
             llm_score REAL NOT NULL,
             stylometric_score REAL NOT NULL,
             status TEXT NOT NULL,
+            transparency_label TEXT,
             appeal_reasoning TEXT
         )
     """)
+    # Migration: add transparency_label to pre-existing databases that lack the column
+    existing_columns = [row[1] for row in cursor.execute("PRAGMA table_info(audit_log)").fetchall()]
+    if "transparency_label" not in existing_columns:
+        cursor.execute("ALTER TABLE audit_log ADD COLUMN transparency_label TEXT")
     conn.commit()
     conn.close()
 
-def write_log_entry(content_id: str, creator_id: str, text_content: str, attribution: str, confidence: float, llm_score: float, stylometric_score: float, status: str = "completed"):
+def write_log_entry(content_id: str, creator_id: str, text_content: str, attribution: str, confidence: float, llm_score: float, stylometric_score: float, status: str = "completed", transparency_label: str = None):
     current_time = datetime.datetime.utcnow().isoformat() + "Z"
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO audit_log (content_id, creator_id, timestamp, text_content, attribution, confidence, llm_score, stylometric_score, status, appeal_reasoning)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
-    """, (content_id, creator_id, current_time, text_content, attribution, confidence, llm_score, stylometric_score, status))
+        INSERT INTO audit_log (content_id, creator_id, timestamp, text_content, attribution, confidence, llm_score, stylometric_score, status, transparency_label, appeal_reasoning)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+    """, (content_id, creator_id, current_time, text_content, attribution, confidence, llm_score, stylometric_score, status, transparency_label))
     conn.commit()
     conn.close()
 

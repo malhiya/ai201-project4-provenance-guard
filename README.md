@@ -71,11 +71,11 @@ Our system has high confidence (60%) that this text exhibits patterns consistent
 
 Score Analysis:
 
-Confidence Score: 60%
-Combined Core Score: 0.4
+Confidence Score: 61%
+Combined Core Score: 0.39
 Signal 1 (Semantic Probabilities): 0.42
 Signal 2 (Stylometric Heuristics): 0.32
-Submission ID: 7497ae01-3748-4ca8-a474-ca09fc86681a
+Submission ID: f26f8e8d-f000-46d3-83b9-3a74cd09fe53
 ```
 
 ---
