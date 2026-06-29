@@ -101,6 +101,7 @@ The description text also adapts to **how strong** the confidence is, so a borde
 ### 3. Uncertain / Borderline Gray Area (Score 0.41 to 0.69)
 * **Heading Displayed:** Uncertain
 * **Description Displayed:** The system detected a mix of original and automated writing patterns. Authorship cannot be definitively determined for this submission.
+* **Confidence Displayed:** For uncertain results the percentage reflects the distance from the 0.50 midpoint: `abs(score - 0.5) * 2 * 100`. A score near 0.50 (maximum ambiguity) reports a low confidence, rising toward the edges of the gray-area band, so the least certain results are not shown as highly confident.
 
 ---
 
